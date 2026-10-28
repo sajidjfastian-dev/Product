@@ -1,0 +1,37 @@
+[
+  {
+    "id": "8b6aab8f-f7d8-4ae1-b120-0d67a04b0611",
+    "name": "Wireless Mouse",
+    "category": "Accessories",
+    "price": 24.99,
+    "stock": 80
+  },
+  {
+    "id": "fd42e2e4-1376-4f4d-9055-48f1139f7d8e",
+    "name": "Mechanical Keyboard",
+    "category": "Accessories",
+    "price": 89.5,
+    "stock": 35
+  },
+  {
+    "id": "05d80a0a-5a47-4a64-a891-c02cbb3ab4f0",
+    "name": "USB-C Hub",
+    "category": "Adapters",
+    "price": 39.95,
+    "stock": 50
+  },
+  {
+    "id": "ccb30c6c-cc2c-4c1a-86bf-cc77570a2d70",
+    "name": "27-inch Monitor",
+    "category": "Displays",
+    "price": 279.00,
+    "stock": 12
+  },
+  {
+    "id": "cb9916dc-03c7-46b3-80b2-91fae2228755",
+    "name": "Laptop Stand",
+    "category": "Accessories",
+    "price": 44.00,
+    "stock": 25
+  }
+]

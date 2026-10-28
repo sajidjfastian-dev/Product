@@ -1,0 +1,11 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      ASPNETCORE_HTTP_PORTS: 8080
+      ConnectionStrings__Products: "Server=host.docker.internal,${SQLSERVER_PORT:?Set SQLSERVER_PORT in .env};Database=ProductCatalogDb;User Id=${SQLSERVER_USER:?Set SQLSERVER_USER in .env};Password=${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True"
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
