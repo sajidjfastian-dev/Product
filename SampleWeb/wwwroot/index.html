@@ -6,6 +6,7 @@
   <meta name="description" content="Product catalog administration">
   <title>Product Catalog</title>
   <link rel="stylesheet" href="/styles.css">
+  <script src="/config.js"></script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -16,7 +17,7 @@
         <h1>Product catalog</h1>
         <p class="subtitle">Manage products in your catalog.</p>
       </div>
-      <a class="button button-secondary" href="/api/products/pdf">Download PDF</a>
+      <a id="download-pdf" class="button button-secondary" href="#">Download PDF</a>
     </header>
 
     <section class="panel form-panel" aria-labelledby="form-title">

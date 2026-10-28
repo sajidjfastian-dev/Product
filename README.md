@@ -1,24 +1,31 @@
 # Product Catalog
 
-A Dockerized .NET 10 API and browser portal backed by the local SQL Server Express instance `SAJID-ALI\SQLEXPRESS`.
+The Visual Studio solution [`ProductCatalog.sln`](./ProductCatalog.sln) contains two independent .NET 10 projects:
 
-## Deployment
+- **SampleApi** — product CRUD API, SQL Server persistence, seed data, and PDF export.
+- **SampleWeb** — browser portal for listing, searching, adding, editing, and deleting products.
 
-The local SQL Express instance is configured to accept SQL-authenticated TCP connections on port `1433`. The `ProductCatalogDb` database and a dedicated `productapi_docker` login have been created. The app login is limited to reading, writing, and creating its database objects.
+Open `ProductCatalog.sln` in a Visual Studio release that supports the .NET 10 SDK. This repository targets .NET 10; the older Visual Studio 2022 17.1 release does not support building it.
 
-The connection credentials are in the ignored local `.env` file. Do not commit that file. To deploy or rebuild the API and portal:
+## Run with Docker Compose
+
+The API connects to the local SQL Server Express instance `SAJID-ALI\SQLEXPRESS`. The host needs TCP/IP enabled on port 1433, the `ProductCatalogDb` database, and a SQL login with the permissions described in the database notes below.
+
+Set `SQLSERVER_PORT`, `SQLSERVER_USER`, and `SQLSERVER_PASSWORD` in the local, ignored `.env` file. Then run:
 
 ```powershell
-docker compose up --build -d --remove-orphans
+docker compose up --build -d
 ```
 
-Open the portal at `http://localhost:8080`. Check `http://localhost:8080/health` for service health. The API container connects to the host database through `host.docker.internal`; the database itself stays on the Windows SQL Express instance and is not stored in a Docker volume.
+Open the portal at `http://localhost:8081`. The API is at `http://localhost:8080`; health checks are available at `/health` on both services. The web container is separate from the API container and sends browser requests to the configured public API URL.
 
-Stop the web/API container with `docker compose down`. The local SQL database and its data are not removed.
+Stop the containers with `docker compose down`. The SQL database remains on the host and is not deleted.
 
-## Portal
+## Run from Visual Studio
 
-The portal at `/` lists and searches products, provides create/edit/delete actions, and downloads the full catalog as a PDF. The PDF is generated from the current SQL Server data when requested.
+Set `SampleApi` as the startup project to run the API and `SampleWeb` as the startup project to run the portal. The API connection string can be supplied using the `ConnectionStrings__Products` environment variable; its frontend CORS origin defaults to `http://localhost:8081`. The Web project reads `ProductsApiUrl`, which defaults to `http://localhost:8080`.
+
+For local development with both projects running, use the HTTP URLs above or adjust the web API URL and the API's `Frontend:Origin` setting to match the launch URLs.
 
 ## API endpoints
 
@@ -28,7 +35,7 @@ The portal at `/` lists and searches products, provides create/edit/delete actio
 | `PUT` | `/api/products/{id}` | Update a product |
 | `DELETE` | `/api/products/{id}` | Delete a product |
 | `GET` | `/api/products` | List products (optional `?category=Accessories`) |
-| `GET` | `/api/products/pdf` | Download all products as `products.pdf` |
+| `GET` | `/api/products/pdf` | Download the full list as `products.pdf` |
 
 Create and update requests use this JSON shape:
 
@@ -47,4 +54,4 @@ Names and categories are required; prices and stock counts cannot be negative.
 
 The initial test products are in [SampleApi/test-data/products.json](./SampleApi/test-data/products.json) and are inserted into `ProductCatalogDb` once. The seed marker prevents deleted products from being reinserted on later API restarts.
 
-The SQL Express connection requires TCP/IP and SQL Authentication on the host instance. The API login credentials are managed in `.env`, which is excluded from Docker build context and source control. The `.env.example` file shows the required variable names; if setting up another machine, create the database and login there and set matching values in `.env`.
+The API login should be limited to database reader/writer and DDL permissions on `ProductCatalogDb`. Keep its password in `.env`, which is excluded from Git and Docker build context. `.env.example` documents the required variable names.

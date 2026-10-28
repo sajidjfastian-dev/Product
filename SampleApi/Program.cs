@@ -10,10 +10,15 @@ var connectionString = builder.Configuration.GetConnectionString("Products")
 builder.Services.AddDbContext<ProductDbContext>(options =>
     options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure()));
 
+builder.Services.AddCors(options =>
+    options.AddDefaultPolicy(policy =>
+        policy.WithOrigins(builder.Configuration["Frontend:Origin"] ?? "http://localhost:8081")
+            .AllowAnyHeader()
+            .AllowAnyMethod()));
+
 var app = builder.Build();
 
-app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseCors();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {

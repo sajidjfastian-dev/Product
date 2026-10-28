@@ -7,11 +7,12 @@ const title = document.querySelector("#form-title");
 const saveButton = document.querySelector("#save-button");
 const cancelButton = document.querySelector("#cancel-edit");
 const emptyState = document.querySelector("#empty-state");
+const apiBaseUrl = window.productCatalogConfig.apiBaseUrl.replace(/\/+$/, "");
 let products = [];
 let editingId = null;
 
 async function request(path, options) {
-  const response = await fetch(path, options);
+  const response = await fetch(`${apiBaseUrl}${path}`, options);
   if (!response.ok) {
     let detail = `Request failed (${response.status}).`;
     try {
@@ -78,6 +79,8 @@ async function loadProducts() {
   products = await request("/api/products");
   renderProducts();
 }
+
+document.querySelector("#download-pdf").href = `${apiBaseUrl}/api/products/pdf`;
 
 function resetForm() {
   editingId = null;
