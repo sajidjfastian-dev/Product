@@ -1,41 +1,44 @@
 # Product Catalog
 
-The Visual Studio solution [`ProductCatalog.sln`](./ProductCatalog.sln) contains two independent .NET 10 projects:
+The Visual Studio solution [`ProductCatalog.sln`](./ProductCatalog.sln) contains two independently deployable .NET 10 services:
 
-- **SampleApi** — product CRUD API, SQL Server persistence, seed data, and PDF export.
-- **SampleWeb** — browser portal for listing, searching, adding, editing, and deleting products.
+- **SampleApi** — SQL Server product API, database initialization, image upload/storage, and PDF export.
+- **SampleWeb** — ASP.NET Core static web host serving a React 19.3 + TypeScript 7 + Vite 8 application.
 
-Open `ProductCatalog.sln` in a Visual Studio release that supports the .NET 10 SDK. This repository targets .NET 10; the older Visual Studio 2022 17.1 release does not support building it.
+The React/Vite build uses Node.js 24 LTS. The Dockerfile builds the frontend and .NET services as separate image targets; Compose runs separate API and Web containers.
 
 ## Run with Docker Compose
 
-The API connects to the local SQL Server Express instance `SAJID-ALI\SQLEXPRESS`. The host needs TCP/IP enabled on port 1433, the `ProductCatalogDb` database, and a SQL login with the permissions described in the database notes below.
-
-Set `SQLSERVER_PORT`, `SQLSERVER_USER`, and `SQLSERVER_PASSWORD` in the local, ignored `.env` file. Then run:
+Set `SQLSERVER_PORT`, `SQLSERVER_USER`, and `SQLSERVER_PASSWORD` in the local, ignored `.env` file. The API connects to the configured SQL Server Express instance. Start the services with:
 
 ```powershell
 docker compose up --build -d
 ```
 
-Open the portal at `http://localhost:8081`. The API is at `http://localhost:8080`; health checks are available at `/health` on both services. The web container is separate from the API container and sends browser requests to the configured public API URL.
+Open the portal at `http://localhost:8081`. The API is at `http://localhost:8080`; health checks are available at `/health` on both services. The SQL database and product image binaries remain together in SQL Server.
 
-Stop the containers with `docker compose down`. The SQL database remains on the host and is not deleted.
+Stop the web and API containers with `docker compose down`. Product records and image data remain in SQL Server.
 
-## Run from Visual Studio
+## Product catalog
 
-Set `SampleApi` as the startup project to run the API and `SampleWeb` as the startup project to run the portal. The API connection string can be supplied using the `ConnectionStrings__Products` environment variable; its frontend CORS origin defaults to `http://localhost:8081`. The Web project reads `ProductsApiUrl`, which defaults to `http://localhost:8080`.
+The product form supports barcode, unique SKU, description, brand, storage location, price, stock quantity, and up to 8 JPEG/PNG/WebP images (8 MB per image). Product photos can be selected or dragged into the upload area and are persisted in SQL Server.
 
-For local development with both projects running, use the HTTP URLs above or adjust the web API URL and the API's `Frontend:Origin` setting to match the launch URLs.
+The catalog grid supports server-side search across product identifiers and details, category/brand/location/stock/price filters, sortable columns, and pagination.
+
+On first startup with this version, the API adds a generated sample illustration to every existing product that does not already have an image. It also adds 100 additional sample products covering accessories, adapters, displays, storage, networking, audio, cameras, office equipment, cables, and components. The illustrations are generated product-category artwork (not product photographs) and are stored in SQL Server with the product galleries. Seeding is tracked in SQL Server and will not add duplicates on subsequent restarts; existing products are preserved.
 
 ## API endpoints
 
 | Method | Path | Description |
 |---|---|---|
+| `GET` | `/api/products` | Search and page through products; supports `search`, `category`, `brand`, `location`, `stock`, `minPrice`, `maxPrice`, `page`, `pageSize`, `sortBy`, and `sortDirection` |
 | `POST` | `/api/products` | Create a product |
 | `PUT` | `/api/products/{id}` | Update a product |
-| `DELETE` | `/api/products/{id}` | Delete a product |
-| `GET` | `/api/products` | List products (optional `?category=Accessories`) |
-| `GET` | `/api/products/pdf` | Download the full list as `products.pdf` |
+| `DELETE` | `/api/products/{id}` | Delete a product and its image gallery |
+| `POST` | `/api/products/{id}/images` | Upload one or more gallery images using multipart field `files` |
+| `GET` | `/api/products/{id}/images/{imageId}` | Retrieve a stored product image |
+| `DELETE` | `/api/products/{id}/images/{imageId}` | Remove one image from a product gallery |
+| `GET` | `/api/products/pdf` | Download the full product list as `products.pdf` |
 
 Create and update requests use this JSON shape:
 
@@ -44,14 +47,31 @@ Create and update requests use this JSON shape:
   "name": "Webcam",
   "category": "Accessories",
   "price": 59.99,
-  "stock": 18
+  "stock": 18,
+  "barcode": "8901000000066",
+  "sku": "ACC-CAM-006",
+  "description": "HD webcam with autofocus.",
+  "location": "Aisle A / Shelf 4",
+  "brand": "Northstar"
 }
 ```
 
-Names and categories are required; prices and stock counts cannot be negative.
+## Local frontend development
+
+Start the API with Visual Studio or `dotnet run --project .\SampleApi\SampleApi.csproj`. With Node.js 24 installed, start the Vite development server:
+
+```powershell
+Set-Location .\SampleWeb\ClientApp
+npm ci
+npm run dev
+```
+
+The Vite development server proxies API requests to `http://localhost:8080`. For the published Web service, `ProductsApiUrl` sets the API address rendered into the runtime configuration script.
+
+To serve the built frontend through the `SampleWeb` ASP.NET Core project in Visual Studio, run `npm ci` and `npm run build` from `SampleWeb\ClientApp` first, then start `SampleWeb`.
 
 ## Database notes
 
-The initial test products are in [SampleApi/test-data/products.json](./SampleApi/test-data/products.json) and are inserted into `ProductCatalogDb` once. The seed marker prevents deleted products from being reinserted on later API restarts.
+The initial test products are in [SampleApi/test-data/products.json](./SampleApi/test-data/products.json), with the additional 100 sample products in [SampleApi/test-data/additional-sample-products.json](./SampleApi/test-data/additional-sample-products.json). Existing databases are extended on API startup with the optional product columns and image table without dropping existing product records. Barcode and SKU are unique when provided.
 
-The API login should be limited to database reader/writer and DDL permissions on `ProductCatalogDb`. Keep its password in `.env`, which is excluded from Git and Docker build context. `.env.example` documents the required variable names.
+Keep the SQL login password in `.env`, which is excluded from Git and Docker build context. `.env.example` documents the required variable names.

@@ -4,34 +4,59 @@
     "name": "Wireless Mouse",
     "category": "Accessories",
     "price": 24.99,
-    "stock": 80
+    "stock": 80,
+    "barcode": "8901000000011",
+    "sku": "ACC-MOUSE-001",
+    "description": "Ergonomic wireless mouse with adjustable DPI.",
+    "location": "Aisle A / Shelf 1",
+    "brand": "Northstar"
   },
   {
     "id": "fd42e2e4-1376-4f4d-9055-48f1139f7d8e",
     "name": "Mechanical Keyboard",
     "category": "Accessories",
     "price": 89.5,
-    "stock": 35
+    "stock": 35,
+    "barcode": "8901000000028",
+    "sku": "ACC-KEY-002",
+    "description": "Mechanical keyboard with tactile switches.",
+    "location": "Aisle A / Shelf 2",
+    "brand": "Northstar"
   },
   {
     "id": "05d80a0a-5a47-4a64-a891-c02cbb3ab4f0",
     "name": "USB-C Hub",
     "category": "Adapters",
     "price": 39.95,
-    "stock": 50
+    "stock": 50,
+    "barcode": "8901000000035",
+    "sku": "ADP-HUB-003",
+    "description": "Multiport USB-C hub for laptop connectivity.",
+    "location": "Aisle B / Shelf 1",
+    "brand": "Connectix"
   },
   {
     "id": "ccb30c6c-cc2c-4c1a-86bf-cc77570a2d70",
     "name": "27-inch Monitor",
     "category": "Displays",
     "price": 279.00,
-    "stock": 12
+    "stock": 12,
+    "barcode": "8901000000042",
+    "sku": "DSP-MON-004",
+    "description": "27-inch QHD display for home or office.",
+    "location": "Display area / Stand 1",
+    "brand": "Viewpoint"
   },
   {
     "id": "cb9916dc-03c7-46b3-80b2-91fae2228755",
     "name": "Laptop Stand",
     "category": "Accessories",
     "price": 44.00,
-    "stock": 25
+    "stock": 25,
+    "barcode": "8901000000059",
+    "sku": "ACC-STND-005",
+    "description": "Height-adjustable laptop stand with ventilation.",
+    "location": "Aisle A / Shelf 3",
+    "brand": "Northstar"
   }
 ]

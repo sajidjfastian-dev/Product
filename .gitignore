@@ -3,6 +3,9 @@
 !.env.example
 **/bin/
 **/obj/
+**/node_modules/
+**/dist/
+SampleWeb/wwwroot/
 .vs/
 *.suo
 products.pdf

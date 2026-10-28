@@ -1,3 +1,10 @@
+FROM node:24-alpine AS frontend
+WORKDIR /src/SampleWeb/ClientApp
+COPY SampleWeb/ClientApp/package.json SampleWeb/ClientApp/package-lock.json ./
+RUN npm ci
+COPY SampleWeb/ClientApp/ ./
+RUN npm run build
+
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
@@ -22,4 +29,5 @@ WORKDIR /app
 ENV ASPNETCORE_HTTP_PORTS=8081
 EXPOSE 8081
 COPY --from=build /app/web .
+COPY --from=frontend /src/SampleWeb/wwwroot/ ./wwwroot/
 ENTRYPOINT ["dotnet", "SampleWeb.dll"]
