@@ -7,6 +7,8 @@ public sealed class Product
     public string Category { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public int Stock { get; set; }
+    public int ReorderLevel { get; set; } = 10;
+    public bool IsActive { get; set; } = true;
     public string? Barcode { get; set; }
     public string? Sku { get; set; }
     public string? Description { get; set; }
@@ -25,7 +27,8 @@ public sealed record ProductRequest(
     string? Sku,
     string? Description,
     string? Location,
-    string? Brand);
+    string? Brand,
+    int ReorderLevel = 10);
 
 public sealed class ProductImage
 {
@@ -52,6 +55,7 @@ public sealed record ProductResponse(
     string Category,
     decimal Price,
     int Stock,
+    int ReorderLevel,
     string? Barcode,
     string? Sku,
     string? Description,

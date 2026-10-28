@@ -15,7 +15,7 @@ export default defineConfig({
     },
   ],
   build: {
-    outDir: "../wwwroot",
+    outDir: "dist",
     emptyOutDir: true,
   },
   server: {

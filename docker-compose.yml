@@ -5,12 +5,28 @@ services:
       dockerfile: Dockerfile
       target: api
     environment:
-      ASPNETCORE_HTTP_PORTS: 8080
-      Frontend__Origin: http://localhost:8081
-      ConnectionStrings__Products: "Server=host.docker.internal,${SQLSERVER_PORT:?Set SQLSERVER_PORT in .env};Database=ProductCatalogDb;User Id=${SQLSERVER_USER:?Set SQLSERVER_USER in .env};Password=${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env};Encrypt=True;TrustServerCertificate=True"
+      PORT: 8080
+      FRONTEND_ORIGIN: http://localhost:8081
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      SESSION_KEY_FILE: /var/lib/stockroom/session.key
+      SQLSERVER_HOST: host.docker.internal
+      SQLSERVER_PORT: ${SQLSERVER_PORT:?Set SQLSERVER_PORT in .env}
+      SQLSERVER_DATABASE: ProductCatalogDb
+      SQLSERVER_USER: ${SQLSERVER_USER:?Set SQLSERVER_USER in .env}
+      SQLSERVER_PASSWORD: ${SQLSERVER_PASSWORD:?Set SQLSERVER_PASSWORD in .env}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
     ports:
       - "8080:8080"
+    volumes:
+      - session-keys:/var/lib/stockroom
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   web:
     build:
@@ -18,10 +34,20 @@ services:
       dockerfile: Dockerfile
       target: web
     environment:
-      ASPNETCORE_HTTP_PORTS: 8081
-      ProductsApiUrl: http://localhost:8080
+      PORT: 8081
+      API_UPSTREAM: http://api:8080
     ports:
       - "8081:8081"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8081/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  session-keys:

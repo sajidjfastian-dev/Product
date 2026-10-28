@@ -115,12 +115,13 @@ public static class DatabaseSeeder
             .Include(product => product.Images)
             .ToListAsync(cancellationToken);
         var productsWithoutImages = products.Where(product => product.Images.Count == 0).ToArray();
+        var illustrations = new List<ProductImage>(productsWithoutImages.Length);
 
         foreach (var product in productsWithoutImages)
         {
             var svg = CreateSampleIllustration(product);
             var data = System.Text.Encoding.UTF8.GetBytes(svg);
-            product.Images.Add(new ProductImage
+            illustrations.Add(new ProductImage
             {
                 Id = Guid.NewGuid(),
                 ProductId = product.Id,
@@ -133,6 +134,7 @@ public static class DatabaseSeeder
             });
         }
 
+        db.ProductImages.AddRange(illustrations);
         db.SeedStates.Add(new DatabaseSeedState { Key = SampleIllustrationsSeedMarker });
         await db.SaveChangesAsync(cancellationToken);
     }
