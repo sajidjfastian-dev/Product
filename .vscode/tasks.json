@@ -1,0 +1,34 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Start Vite dev server",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "dev", "--", "--host", "127.0.0.1", "--strictPort"],
+      "options": {
+        "cwd": "${workspaceFolder}\\SampleWeb\\ClientApp"
+      },
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "vite",
+        "pattern": {
+          "regexp": ".*"
+        },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "http://localhost:5173/"
+        }
+      },
+      "presentation": {
+        "panel": "dedicated",
+        "reveal": "silent",
+        "showReuseMessage": false
+      },
+      "runOptions": {
+        "instanceLimit": 1
+      }
+    }
+  ]
+}

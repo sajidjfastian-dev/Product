@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from "node:crypto";
-import { Router, type Request, type Response } from "express";
+import { Router, type Response } from "express";
 import { getPool, sql } from "./db.js";
 import {
   cookieOptions, makePasswordHash, makeSession, requirePermission,

@@ -15,11 +15,17 @@ docker compose ps
 
 Open the portal at `http://localhost:8081`. The portal proxies `/api` requests to the Node API, so browser authentication cookies, product images, and API calls use the same origin. The API is also available directly at `http://localhost:8080`; health checks are available at `/health`.
 
-The public customer storefront is available at `http://localhost:8081/shop`; the existing staff workspace remains at `/`. The storefront shows in-stock products and their first catalog image, and its assistant uses OpenAI Chat Completions with strict JSON Schema output before the frontend handles an allowlisted client-side route. The customer catalog does not require staff authentication. Customer checkout, payment processing, customer accounts, and order lookup are not connected yet; those screens are explicitly marked as previews and do not create sales.
+The public customer storefront is available at `http://localhost:8081/shop`; the existing staff workspace remains at `/`. The storefront shows in-stock products and their first catalog image, and its assistant uses OpenAI Chat Completions with strict JSON Schema output before the frontend handles an allowlisted client-side route. Product discovery combines semantic vector retrieval from Qdrant with keyword search, then checks current availability, prices, and product details against SQL Server before giving results to the model. The first searchable chat builds the product vector index and may take longer; subsequent searches reconcile changes at most once per minute. Product content and shopper queries are sent to OpenAI for embeddings, and relevant product matches and conversation messages are sent to the configured chat model. Qdrant runs as an internal Docker service and persists its index in the `vector-data` volume. Product descriptions are treated as untrusted data, not instructions. The customer catalog does not require staff authentication. Customer checkout, payment processing, customer accounts, and order lookup are not connected yet; those screens are explicitly marked as previews and do not create sales.
 
-To enable AI chat, add your own provider key to the local ignored `.env` file (never commit or share it), for example `OPENAI_API_KEY=...`; optionally set `OPENAI_MODEL`. Then rebuild/restart with `docker compose up -d --build`. The selected model must support Chat Completions structured outputs / strict JSON Schema. The implemented stack is Node.js 24, Express 5, SQL Server, React 19, TypeScript, Vite, and the OpenAI-compatible Chat Completions API.
+To enable AI chat, add your own provider key to the local ignored `.env` file (never commit or share it), for example `OPENAI_API_KEY=...`; optionally set `OPENAI_MODEL`. Then apply the environment update with `docker compose up -d`. The selected model must support Chat Completions structured outputs / strict JSON Schema. The implemented stack is Node.js 24, Express 5, SQL Server, React 19, TypeScript, Vite, and the OpenAI-compatible Chat Completions API.
 
-The API adds the sales and purchase tables to SQL Server if they do not already exist. It retains existing products, images, user accounts, roles, permissions, movements, and audit records. A named Docker volume stores the API session-signing key. `docker compose down` preserves this key and the SQL database. Avoid `docker compose down -v` unless you intend to remove the local session-key volume; it will sign users out, but it does not delete the SQL Server database.
+## User and API documentation
+
+- [Full user guide](./USER-GUIDE.md) covers setup, roles, inventory workflows, storefront, troubleshooting, and safe operations.
+- [API specification (PDF)](./API-SPECIFICATION.pdf) is generated from the maintained [API specification source](./API-SPECIFICATION.md).
+- Regenerate the API PDF after editing its Markdown source with Node.js 24: `Set-Location .\NodeApi; npm ci; npm run docs:pdf`.
+
+The API adds the sales and purchase tables to SQL Server if they do not already exist. It retains existing products, images, user accounts, roles, permissions, movements, and audit records. Named Docker volumes store the API session-signing key and Qdrant's product vector index. `docker compose down` preserves these volumes and the SQL database. Avoid `docker compose down -v` unless you intend to remove the session key and vector index; the index will be rebuilt from SQL Server products when needed, but this requires OpenAI embeddings. Removing the session key signs users out. Neither action deletes the external SQL Server database.
 
 For HTTPS deployments, set `COOKIE_SECURE=true` and configure the public portal/API behind HTTPS. Do not expose an HTTP deployment to untrusted networks.
 
@@ -39,27 +45,7 @@ The first-run administrator screen remains available when the database has no po
 
 These are completed-transaction workflows, not draft orders, payment processing, returns, refunds, or purchase approval flows.
 
-## API endpoints
-
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/api/auth/status`, `/api/auth/csrf` | First-run setup status and CSRF token |
-| `POST` | `/api/auth/bootstrap`, `/api/auth/login`, `/api/auth/logout` | Account setup and session sign-in/out |
-| `GET` | `/api/auth/me` | Current signed-in account |
-| `GET`, `POST`, `PUT` | `/api/auth/admin/users...` | User, role, and account-state administration |
-| `GET`, `POST`, `PUT`, `DELETE` | `/api/products...` | Filtered product catalog, create, update, archive, and images |
-| `GET` | `/api/products/pdf` | Product inventory PDF |
-| `GET`, `POST` | `/api/inventory...` | Movement history and stock adjustments |
-| `GET` | `/api/reports/dashboard` | Stock KPIs, movements, alerts, and best sellers |
-| `GET` | `/api/reports/inventory.csv`, `/api/reports/movements.csv` | Inventory and stock-ledger exports |
-| `GET` | `/api/audit` | Auditable change history |
-| `GET`, `POST` | `/api/sales` | Sale history and completed discounted sales |
-| `GET`, `POST` | `/api/purchases` | Purchase history and received purchases |
-| `GET` | `/api/store/products`, `/api/store/products/:identifier` | Public in-stock customer catalog |
-| `GET` | `/api/store/products/:productId/images/:imageId` | Public catalog product image |
-| `POST` | `/api/customer-assistant/chat` | Catalog-aware AI chat and validated route intent |
-
-API endpoints require the corresponding signed-in role permission, except health and first-run/sign-in endpoints. State-changing requests also require a CSRF token.
+For endpoint methods, request/response contracts, permissions, and status codes, see the complete [API specification](./API-SPECIFICATION.md) or its [PDF version](./API-SPECIFICATION.pdf). Staff APIs require the corresponding signed-in role permission; public storefront and authentication endpoints are documented separately. State-changing requests require a CSRF token.
 
 ## Local frontend development
 
@@ -70,6 +56,12 @@ Set-Location .\SampleWeb\ClientApp
 npm ci
 npm run dev
 ```
+
+## Debug in Visual Studio Code
+
+Open the repository root in VS Code and install dependencies once with `npm ci` in both `NodeApi` and `SampleWeb\ClientApp`. Ensure the local `.env` file has the SQL Server credentials described above and that SQL Server is reachable at `127.0.0.1` using `SQLSERVER_PORT`.
+
+In **Run and Debug**, select **Debug full stack** and press F5 to launch the API and the portal in Chrome. Use **Debug Node API** or **Debug Portal in Chrome** to debug either service by itself. Breakpoints in the API TypeScript source and portal source are enabled. The API uses port 8080, the Vite portal uses port 5173, and the API's development session key is stored under the Windows temp directory.
 
 Build and test the API from its project folder with Node.js 24:
 

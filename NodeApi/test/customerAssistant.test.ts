@@ -1,6 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { parseAssistantResponse } from "../src/customerAssistant.js";
+import {
+  catalogSearchTerms, parseAssistantResponse, validateRecommendedProduct,
+} from "../src/customerAssistant.js";
+
+test("extracts distinct product-search terms and ignores conversational stop words", () => {
+  assert.deepEqual(catalogSearchTerms("Show me a webcam with USB-C, webcam please"), ["webcam", "usb"]);
+});
+
+test("bounds catalog search terms and ignores empty or generic queries", () => {
+  assert.deepEqual(catalogSearchTerms("show me products in stock"), []);
+  assert.deepEqual(catalogSearchTerms("alpha bravo charlie delta echo foxtrot golf hotel india"), [
+    "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
+  ]);
+});
 
 test("accepts a supported customer route with nullable payload fields", () => {
   const parsed = parseAssistantResponse({
@@ -16,6 +29,24 @@ test("accepts a supported customer route with nullable payload fields", () => {
   });
   assert.equal(parsed.routing_action.target_page, "category_listing");
   assert.equal(parsed.routing_action.payload.category_name, "Storage");
+});
+
+test("only allows product-detail routes for a retrieved product", () => {
+  const parsed = parseAssistantResponse({
+    customer_facing_message: "Here is the webcam.",
+    routing_action: {
+      target_page: "product_detail",
+      payload: {
+        search_query: null,
+        product_id_or_slug: "product-123",
+        category_name: null,
+      },
+    },
+  });
+  assert.equal(validateRecommendedProduct(parsed, [
+    { Id: "PRODUCT-123", Name: "Webcam" },
+  ]), parsed);
+  assert.throws(() => validateRecommendedProduct(parsed, []), /outside the retrieved catalog/);
 });
 
 test("rejects route names outside the application route allowlist", () => {

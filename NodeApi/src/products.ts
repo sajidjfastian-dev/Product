@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import PDFDocument from "pdfkit";
-import { Router, type Request, type Response } from "express";
+import { Router, type Request } from "express";
 import multer from "multer";
 import { getPool, sql } from "./db.js";
+import { markProductIndexStale } from "./productKnowledge.js";
 import { requirePermission, requireUser } from "./security.js";
 
 const imageUpload = multer({
@@ -109,17 +110,36 @@ productsRouter.get("/", async (request, response) => {
   const result = await base.query<Record<string, unknown>>(
     `SELECT p.Id, p.Name, p.Category, p.Price, p.Stock, p.ReorderLevel, p.Barcode, p.Sku,
        p.Description, p.Location, p.Brand, p.CreatedAtUtc
-     FROM dbo.Products p WHERE ${where} ORDER BY ${sort} ${direction}, p.Name
+     FROM dbo.Products p WHERE ${where} ORDER BY ${sort} ${direction}, p.Id
      OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY`);
-  const items = await Promise.all(result.recordset.map(async (product) => {
-    const images = await pool.request().input("id", sql.UniqueIdentifier, product.Id)
-      .query<{ Id: string; FileName: string; ContentType: string; SortOrder: number }>(
-        `SELECT Id, FileName, ContentType, SortOrder FROM dbo.ProductImages
-         WHERE ProductId = @id ORDER BY SortOrder`);
-    return productJson(product, images.recordset.map((image) => ({
+  const imageRequest = pool.request();
+  const productParameters = result.recordset.map((product, index) => {
+    const parameter = `product${index}`;
+    imageRequest.input(parameter, sql.UniqueIdentifier, product.Id);
+    return `@${parameter}`;
+  });
+  type ProductImageRow = {
+    Id: string; ProductId: string; FileName: string; ContentType: string; SortOrder: number;
+  };
+  const imageRows: ProductImageRow[] = productParameters.length
+    ? (await imageRequest.query<ProductImageRow>(
+      `SELECT Id, ProductId, FileName, ContentType, SortOrder
+       FROM dbo.ProductImages
+       WHERE ProductId IN (${productParameters.join(",")})
+       ORDER BY ProductId, SortOrder`)).recordset
+    : [];
+  const imagesByProduct = new Map<string, ProductImageRow[]>();
+  for (const image of imageRows) {
+    const images = imagesByProduct.get(image.ProductId) ?? [];
+    images.push(image);
+    imagesByProduct.set(image.ProductId, images);
+  }
+  const items = result.recordset.map((product) => {
+    const images = imagesByProduct.get(String(product.Id)) ?? [];
+    return productJson(product, images.map((image) => ({
       id: image.Id, fileName: image.FileName, contentType: image.ContentType, sortOrder: image.SortOrder,
     })));
-  }));
+  });
   response.json({ items, totalCount, page, pageSize });
 });
 
@@ -181,6 +201,7 @@ productsRouter.post("/", requirePermission("products.write"), async (request, re
         name: String(body.name).trim(), barcode, sku: nullable(body.sku), stock: Number(body.stock),
       });
       await transaction.commit();
+      markProductIndexStale();
     } catch (error) {
       await transaction.rollback();
       throw error;
@@ -237,6 +258,7 @@ productsRouter.put("/:id", requirePermission("products.write"), async (request, 
     });
     await transaction.commit();
     transactionFinished = true;
+    markProductIndexStale();
     const result = await pool.request().input("id", sql.UniqueIdentifier, id)
       .query<Record<string, unknown>>("SELECT * FROM dbo.Products WHERE Id = @id");
     response.json(productJson(result.recordset[0]!));
@@ -367,6 +389,7 @@ productsRouter.delete("/:id", requirePermission("products.write"), async (reques
     }
     await transaction.commit();
     transactionFinished = true;
+    if (result.rowsAffected[0]) markProductIndexStale();
     if (!result.rowsAffected[0]) { response.sendStatus(404); return; }
     response.sendStatus(204);
   } catch (error) {

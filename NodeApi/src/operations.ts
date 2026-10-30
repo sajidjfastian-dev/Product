@@ -15,7 +15,8 @@ class OrderValidationError extends Error {}
 
 function csvCell(value: unknown) {
   const text = String(value ?? "");
-  return `"${text.replace(/"/g, '""')}"`;
+  const safeText = /^[\t\r\n ]*[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
 }
 
 async function audit(
@@ -255,7 +256,8 @@ inventoryRouter.get("/movements", async (request, response) => {
   const result = await (await getPool()).request().input("offset", sql.Int, (page - 1) * pageSize)
     .input("size", sql.Int, pageSize)
     .query<Record<string, unknown>>(`SELECT m.Id, m.ProductId, p.Name AS ProductName, p.Sku,
-      m.MovementType, m.QuantityChange, m.BalanceAfter, m.Reason, m.Reference, m.CreatedByEmail, m.CreatedAtUtc
+      m.MovementType, m.QuantityChange, m.BalanceAfter, m.Reason, m.Reference, m.CreatedByEmail, m.CreatedAtUtc,
+      COUNT(*) OVER() AS TotalCount
       FROM dbo.InventoryMovements m JOIN dbo.Products p ON p.Id=m.ProductId
       ORDER BY m.CreatedAtUtc DESC OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`);
   response.json({
@@ -265,7 +267,7 @@ inventoryRouter.get("/movements", async (request, response) => {
       balanceAfter: item.BalanceAfter, reason: item.Reason, reference: item.Reference,
       createdByEmail: item.CreatedByEmail, createdAtUtc: item.CreatedAtUtc,
     })),
-    totalCount: result.recordset.length, page, pageSize,
+    totalCount: Number(result.recordset[0]?.TotalCount ?? 0), page, pageSize,
   });
 });
 
@@ -371,10 +373,11 @@ auditRouter.get("/", async (request, response) => {
   const size = Math.min(200, Math.max(1, Number(request.query.pageSize) || 50));
   const page = Math.max(1, Number(request.query.page) || 1);
   const result = await (await getPool()).request().input("offset", sql.Int, (page - 1) * size)
-    .input("size", sql.Int, size).query<Record<string, unknown>>(`SELECT Id, UserId, UserEmail, Action, EntityType, EntityId, Details, CreatedAtUtc
+    .input("size", sql.Int, size).query<Record<string, unknown>>(`SELECT Id, UserId, UserEmail, Action, EntityType, EntityId, Details, CreatedAtUtc,
+        COUNT(*) OVER() AS TotalCount
       FROM dbo.AuditEvents ORDER BY CreatedAtUtc DESC OFFSET @offset ROWS FETCH NEXT @size ROWS ONLY`);
   response.json({ items: result.recordset.map((item) => ({
     id: item.Id, userId: item.UserId, userEmail: item.UserEmail, action: item.Action,
     entityType: item.EntityType, entityId: item.EntityId, details: item.Details, createdAtUtc: item.CreatedAtUtc,
-  })), totalCount: result.recordset.length, page, pageSize: size });
+  })), totalCount: Number(result.recordset[0]?.TotalCount ?? 0), page, pageSize: size });
 });

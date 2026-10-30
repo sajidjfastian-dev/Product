@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "tsx --test test/*.test.ts",
+    "docs:pdf": "node scripts/generate-api-spec-pdf.mjs",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts"
   },

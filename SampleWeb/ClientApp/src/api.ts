@@ -180,6 +180,9 @@ export function listProducts(
 
 export function listCustomerProducts(query: URLSearchParams, signal?: AbortSignal): Promise<{
   items: CustomerProduct[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
   categories: string[];
 }> {
   return request(`/api/store/products?${query}`, { signal });

@@ -3,6 +3,28 @@ import { getPool } from "./db.js";
 export async function ensureSchema(): Promise<void> {
   const pool = await getPool();
   await pool.request().query(`
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE object_id = OBJECT_ID(N'dbo.Products')
+        AND name = N'IX_Products_ActivePortal'
+    )
+    BEGIN
+      CREATE NONCLUSTERED INDEX IX_Products_ActivePortal
+        ON dbo.Products(Name, Id)
+        INCLUDE (Category, Price, Stock, ReorderLevel, Barcode, Sku, Location, Brand, CreatedAtUtc)
+        WHERE IsActive = 1;
+    END;
+    IF NOT EXISTS (
+      SELECT 1 FROM sys.indexes
+      WHERE object_id = OBJECT_ID(N'dbo.Products')
+        AND name = N'IX_Products_StoreCatalog'
+    )
+    BEGIN
+      CREATE NONCLUSTERED INDEX IX_Products_StoreCatalog
+        ON dbo.Products(Name, Id)
+        INCLUDE (Category, Brand, Description, Sku, Price, Stock)
+        WHERE IsActive = 1 AND Stock > 0;
+    END;
     IF OBJECT_ID(N'dbo.SalesOrders', N'U') IS NULL
     BEGIN
       CREATE TABLE dbo.SalesOrders (

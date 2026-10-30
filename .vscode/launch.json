@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug Node API",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}\\NodeApi\\src\\server.ts",
+      "cwd": "${workspaceFolder}\\NodeApi",
+      "runtimeArgs": ["--import", "tsx"],
+      "envFile": "${workspaceFolder}\\.env",
+      "env": {
+        "PORT": "8080",
+        "FRONTEND_ORIGIN": "http://localhost:5173",
+        "COOKIE_SECURE": "false",
+        "SQLSERVER_HOST": "127.0.0.1",
+        "SESSION_KEY_FILE": "${env:TEMP}\\stockroom-session.key"
+      },
+      "sourceMaps": true,
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug Portal in Chrome",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}\\SampleWeb\\ClientApp",
+      "preLaunchTask": "Start Vite dev server"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Debug full stack",
+      "configurations": ["Debug Node API", "Debug Portal in Chrome"],
+      "stopAll": true
+    }
+  ]
+}

@@ -28,6 +28,8 @@ interface ChatMessage {
   content: string;
 }
 
+const customerProductsPageSize = 24;
+
 function readRoute(): RouteState {
   const query = new URLSearchParams(window.location.search);
   const page = query.get("page");
@@ -62,8 +64,12 @@ function App() {
   const [route, setRoute] = useState(readRoute);
   const [products, setProducts] = useState<CustomerProduct[]>([]);
   const [categories, setCategories] = useState<string[]>([]);
+  const [totalProductCount, setTotalProductCount] = useState(0);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogRetry, setCatalogRetry] = useState(0);
   const [selectedProduct, setSelectedProduct] = useState<CustomerProduct | null>(null);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [loadingMoreProducts, setLoadingMoreProducts] = useState(false);
   const [catalogError, setCatalogError] = useState("");
   const [searchText, setSearchText] = useState(route.search);
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -89,6 +95,7 @@ function App() {
       const nextRoute = readRoute();
       setRoute(nextRoute);
       setSearchText(nextRoute.search);
+      setCatalogPage(1);
     };
     window.addEventListener("popstate", handlePopState);
     return () => window.removeEventListener("popstate", handlePopState);
@@ -124,14 +131,27 @@ function App() {
           if (!controller.signal.aborted) setLoadingProducts(false);
         });
     } else if (route.page === "category_listing") {
-      setLoadingProducts(true);
+      const isFirstPage = catalogPage === 1;
+      setLoadingProducts(isFirstPage);
+      setLoadingMoreProducts(!isFirstPage);
       setCatalogError("");
+      if (isFirstPage) {
+        setProducts([]);
+        setTotalProductCount(0);
+      }
       const query = new URLSearchParams();
       if (route.search) query.set("search", route.search);
       if (route.category) query.set("category", route.category);
+      query.set("page", String(catalogPage));
+      query.set("pageSize", String(customerProductsPageSize));
       void listCustomerProducts(query, controller.signal)
         .then((result) => {
-          setProducts(result.items);
+          setProducts((current) => {
+            if (isFirstPage) return result.items;
+            const existing = new Set(current.map((product) => product.id));
+            return [...current, ...result.items.filter((product) => !existing.has(product.id))];
+          });
+          setTotalProductCount(result.totalCount);
           setCategories(result.categories);
         })
         .catch((error: unknown) => {
@@ -140,11 +160,14 @@ function App() {
           }
         })
         .finally(() => {
-          if (!controller.signal.aborted) setLoadingProducts(false);
+          if (!controller.signal.aborted) {
+            setLoadingProducts(false);
+            setLoadingMoreProducts(false);
+          }
         });
     }
     return () => controller.abort();
-  }, [route.page, route.product, route.search, route.category]);
+  }, [route.page, route.product, route.search, route.category, catalogPage, catalogRetry]);
 
   const navigate = (
     page: RouteState["page"],
@@ -162,6 +185,7 @@ function App() {
     if (nextRoute.product) query.set("product", nextRoute.product);
     window.history.pushState(null, "", `/shop?${query}`);
     setRoute(nextRoute);
+    setCatalogPage(1);
     setSearchText(nextRoute.search);
     setCatalogError("");
   };
@@ -303,7 +327,7 @@ function App() {
                     <p className="shop-eyebrow">{route.category || "THE COLLECTION"}</p>
                     <h2>{route.search ? `Results for "${route.search}"` : route.category || "Shop all products"}</h2>
                   </div>
-                  <span>{products.length} products</span>
+                  <span>Showing {products.length} of {totalProductCount} products</span>
                 </div>
                 {catalogError && <p className="shop-notice shop-error">{catalogError}</p>}
                 {loadingProducts
@@ -325,6 +349,18 @@ function App() {
                       </article>
                     ))}</div>
                     : !catalogError && <p className="shop-empty">No products match this search. Try another name or category.</p>}
+                {!loadingProducts && products.length < totalProductCount && (
+                  <div className="shop-load-more">
+                    <button className="shop-primary-button" disabled={loadingMoreProducts}
+                      onClick={() => {
+                        if (catalogError) setCatalogRetry((retry) => retry + 1);
+                        else setCatalogPage((page) => page + 1);
+                      }} type="button">
+                      {loadingMoreProducts ? "Loading products…" : catalogError ? "Retry loading products" : "Load more products"}
+                    </button>
+                    <span>{products.length} of {totalProductCount} shown</span>
+                  </div>
+                )}
               </section>
             </div>
           </>

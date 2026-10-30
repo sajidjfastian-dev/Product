@@ -197,6 +197,7 @@ function CatalogApp({ user, onSignOut }: { user: AuthUser; onSignOut: () => void
   const [maxPrice, setMaxPrice] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [productsLoading, setProductsLoading] = useState(false);
   const [sortBy, setSortBy] = useState<SortField>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -223,10 +224,15 @@ function CatalogApp({ user, onSignOut }: { user: AuthUser; onSignOut: () => void
       if (minPrice) query.set("minPrice", minPrice);
       if (maxPrice) query.set("maxPrice", maxPrice);
 
-      const result = await listProducts(query, signal);
-      setProductPage(result);
-      const pageCount = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
-      if (page > pageCount) setPage(pageCount);
+      setProductsLoading(true);
+      try {
+        const result = await listProducts(query, signal);
+        setProductPage(result);
+        const pageCount = Math.max(1, Math.ceil(result.totalCount / result.pageSize));
+        if (page > pageCount) setPage(pageCount);
+      } finally {
+        if (!signal?.aborted) setProductsLoading(false);
+      }
     },
     [
       page,
@@ -252,7 +258,7 @@ function CatalogApp({ user, onSignOut }: { user: AuthUser; onSignOut: () => void
         }
         setError(loadError instanceof Error ? loadError.message : "Could not load products.");
       });
-    }, search ? 220 : 0);
+    }, 220);
 
     return () => {
       window.clearTimeout(timer);
@@ -657,6 +663,7 @@ function CatalogApp({ user, onSignOut }: { user: AuthUser; onSignOut: () => void
 
         <div className="table-card">
           <div className="table-scroll">
+            {productsLoading && <div className="catalog-loading" role="status">Updating products…</div>}
             <table className="product-table">
               <thead><tr>
                 <SortableHeader field="name" label="Product" current={sortBy} direction={sortDirection} onSort={changeSort} />
