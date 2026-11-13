@@ -347,20 +347,20 @@ st.markdown(
     }
     [data-testid="stMetricLabel"] {color: var(--muted); font-size: .88rem;}
     [data-testid="stMetricValue"] {color: var(--ink); font-weight: 730;}
-    .st-key-metric_cards [data-testid="stButton"] > button {
+    .st-key-metric_cards [data-testid="stButton"] button {
         min-height: 8rem; height: 100%; padding: 18px 20px;
         color: var(--ink); background: var(--panel); border: 1px solid var(--line);
         border-radius: 17px; box-shadow: 0 5px 18px rgba(27, 57, 70, .045);
         text-align: left; white-space: pre-line;
     }
-    .st-key-metric_cards [data-testid="stButton"] > button p {
+    .st-key-metric_cards [data-testid="stButton"] button p {
         color: var(--ink); text-align: left; line-height: 1.6;
     }
-    .st-key-metric_cards [data-testid="stButton"] > button:hover {
+    .st-key-metric_cards [data-testid="stButton"] button:hover {
         color: var(--teal-dark); background: #f5fbfa; border-color: var(--teal);
         box-shadow: 0 8px 24px rgba(8, 126, 131, .11); transform: translateY(-2px);
     }
-    .st-key-metric_cards [data-testid="stButton"] > button:focus:not(:active) {
+    .st-key-metric_cards [data-testid="stButton"] button:focus:not(:active) {
         border-color: var(--teal); color: var(--teal-dark);
     }
     [data-testid="stTabs"] [role="tablist"] {
