@@ -347,6 +347,22 @@ st.markdown(
     }
     [data-testid="stMetricLabel"] {color: var(--muted); font-size: .88rem;}
     [data-testid="stMetricValue"] {color: var(--ink); font-weight: 730;}
+    .st-key-metric_cards [data-testid="stButton"] > button {
+        min-height: 8rem; height: 100%; padding: 18px 20px;
+        color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+        border-radius: 17px; box-shadow: 0 5px 18px rgba(27, 57, 70, .045);
+        text-align: left; white-space: pre-line;
+    }
+    .st-key-metric_cards [data-testid="stButton"] > button p {
+        color: var(--ink); text-align: left; line-height: 1.6;
+    }
+    .st-key-metric_cards [data-testid="stButton"] > button:hover {
+        color: var(--teal-dark); background: #f5fbfa; border-color: var(--teal);
+        box-shadow: 0 8px 24px rgba(8, 126, 131, .11); transform: translateY(-2px);
+    }
+    .st-key-metric_cards [data-testid="stButton"] > button:focus:not(:active) {
+        border-color: var(--teal); color: var(--teal-dark);
+    }
     [data-testid="stTabs"] [role="tablist"] {
         gap: 7px; border-bottom: 1px solid var(--line);
     }
@@ -518,11 +534,103 @@ issue_count = len(issues)
 health_score = max(0, round(100 * (1 - issue_count / max(data.shape[0] * data.shape[1], 1))))
 st.caption(f"Inspecting **{st.session_state.get('inspector_source', 'dataset')}** · {data.shape[0]:,} rows · {data.shape[1]:,} columns")
 
-health_col, rows_col, issues_col, duplicates_col = st.columns(4)
-health_col.metric("Data Health Score", f"{health_score}%")
-rows_col.metric("Total Rows", f"{len(data):,}")
-issues_col.metric("Total Issues Found", f"{issue_count:,}")
-duplicates_col.metric("Duplicate Rows", f"{duplicate_count:,}")
+metric_cards = [
+    ("health", "Data Health Score", f"{health_score}%", "How the quality score is calculated"),
+    ("rows", "Total Rows", f"{len(data):,}", "Dataset size and duplicate-row summary"),
+    ("issues", "Total Issues Found", f"{issue_count:,}", "Breakdown of detected issues"),
+    ("duplicates", "Duplicate Rows", f"{duplicate_count:,}", "Exact duplicate row details"),
+]
+with st.container(key="metric_cards"):
+    metric_columns = st.columns(4)
+    for metric_column, (metric_key, label, value, description) in zip(
+        metric_columns, metric_cards
+    ):
+        with metric_column:
+            if st.button(
+                f"**{label}**\n\n**{value}**\n\nClick to explore",
+                key=f"metric_card_{metric_key}",
+                help=description,
+                width="stretch",
+            ):
+                st.session_state["selected_metric_detail"] = metric_key
+
+selected_metric = st.session_state.get("selected_metric_detail")
+if selected_metric:
+    selected_label = next(
+        label for key, label, _, _ in metric_cards if key == selected_metric
+    )
+    with st.container(border=True):
+        st.subheader(f"{selected_label} details")
+        if selected_metric == "health":
+            flagged_cells = issue_count
+            total_cells = data.shape[0] * data.shape[1]
+            st.markdown(
+                f"The **{health_score}%** score is calculated as "
+                f"`max(0, round(100 × (1 − {flagged_cells} ÷ {total_cells})))`. "
+                f"There are **{flagged_cells:,} flagged findings** across "
+                f"**{total_cells:,} cells** ({data.shape[0]:,} rows × {data.shape[1]:,} columns)."
+            )
+            if issues.empty:
+                st.success("No quality issues are currently detected.")
+            else:
+                st.caption("Findings contributing to the score:")
+                st.dataframe(
+                    issues.groupby("Issue Type", as_index=False)
+                    .size()
+                    .rename(columns={"size": "Issue Count"})
+                    .sort_values("Issue Count", ascending=False),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+        elif selected_metric == "rows":
+            unique_rows = len(data) - duplicate_count
+            duplicate_percent = duplicate_count / len(data) * 100
+            row_col, column_col, unique_col, duplicate_col = st.columns(4)
+            row_col.metric("Rows in dataset", f"{len(data):,}")
+            column_col.metric("Columns", f"{len(data.columns):,}")
+            unique_col.metric("Rows after deduplication", f"{unique_rows:,}")
+            duplicate_col.metric("Rows duplicated", f"{duplicate_percent:.1f}%")
+            st.caption(
+                "Row numbers in the issue log refer to the displayed data order, starting at 1."
+            )
+        elif selected_metric == "issues":
+            if issues.empty:
+                st.success("No issues are currently detected.")
+            else:
+                issue_type_counts = (
+                    issues.groupby("Issue Type", as_index=False)
+                    .size()
+                    .rename(columns={"size": "Issue Count"})
+                    .sort_values("Issue Count", ascending=False)
+                )
+                issue_column_counts = (
+                    issues.groupby("Column Name", as_index=False)
+                    .size()
+                    .rename(columns={"size": "Issue Count"})
+                    .sort_values("Issue Count", ascending=False)
+                )
+                type_column, field_column = st.columns(2)
+                with type_column:
+                    st.caption("Findings by issue type")
+                    st.dataframe(issue_type_counts, use_container_width=True, hide_index=True)
+                with field_column:
+                    st.caption("Findings by column")
+                    st.dataframe(issue_column_counts, use_container_width=True, hide_index=True)
+                st.caption("Showing every detected issue:")
+                st.dataframe(issues, use_container_width=True, hide_index=True)
+        elif selected_metric == "duplicates":
+            duplicate_mask = data.duplicated(keep="first").to_numpy()
+            duplicate_positions = np.flatnonzero(duplicate_mask)
+            if duplicate_count == 0:
+                st.success("No exact duplicate rows are currently detected.")
+            else:
+                duplicate_rows = data.iloc[duplicate_positions].copy()
+                duplicate_rows.insert(0, "Row Number", duplicate_positions + 1)
+                st.markdown(
+                    f"**{duplicate_count:,}** exact duplicate row(s) were found. "
+                    "These rows match an earlier row across every column."
+                )
+                st.dataframe(duplicate_rows, use_container_width=True, hide_index=True)
 
 overview_tab, issues_tab, preview_tab = st.tabs(
     ["Overview Dashboard", "Issue Logs", "Data Preview & Export"]
